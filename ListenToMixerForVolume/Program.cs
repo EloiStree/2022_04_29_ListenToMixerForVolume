@@ -3,9 +3,11 @@ using Microsoft.AspNet.SignalR.Json;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
@@ -107,16 +109,31 @@ namespace ListenToMixerForVolume
                             string title = session2.Process == null ?
                            String.Empty : session2.Process.MainWindowTitle.ToLower();
                             ;
-                            Console.WriteLine("Process: {0}; Peak: {1:P}; ProcessID:{2}",
-                             title,
-                             audioMeterInformation.GetPeakValue() , processId);
+                            //session2.Process.Handle
+
+                            GetActiveChildOfProcessId(session2.Process.MainWindowHandle, out IntPtr childId);
                             KeepTrackAudioMeter tracked = new KeepTrackAudioMeter(session2, audioMeterInformation);
                             allAudioMeters.Add(tracked);
                             if (!similarProcessName.ContainsKey(processId))
                                 similarProcessName.Add(processId, new List<KeepTrackAudioMeter>());
                             similarProcessName[processId].Add(tracked);
 
+                            Console.WriteLine("Process: {0}; Peak: {1:P}; Process:{2} Index: {4} Thread ID: {3}" ,//- Active child {5} (on {6})",
+                             title,
+                             audioMeterInformation.GetPeakValue(), processId,
+                             (int)session2.Process.MainWindowHandle,
+                             similarProcessName[processId].Count-1
+                             //(int)childId,
+                             //GetProcessIdChildrenWindows((int)session2.Process.MainWindowHandle).Length
+                             ); ;
 
+                            //Console.WriteLine("Test C");
+                            //Console.WriteLine("<Process: {0}; Peak: {1:P}; Process:{2} Index:{4}  Thread ID: {3}",
+                            // title,
+                            // audioMeterInformation.GetPeakValue(),
+                            // processId,
+                            // (int)session2.Process.MainWindowHandle,
+                            //0);
                         }
                     }
                 }
@@ -164,6 +181,11 @@ namespace ListenToMixerForVolume
             }
         }
 
+        private static void GetActiveChildOfProcessId(IntPtr mainWindowHandle, out IntPtr childId)
+        {
+            FetchFirstChildrenThatHasDimension(mainWindowHandle, out bool found, out childId);
+        }
+
         public static string m_ipTarget="127.0.0.1";
         public static int    m_ipPort=2506;
 
@@ -191,7 +213,82 @@ namespace ListenToMixerForVolume
                 }
             }
         }
+
+
+
+
+
+        public static void FetchFirstChildrenThatHasDimension(IntPtr intPtr, out bool foundChild, out IntPtr target)
+        {
+            RectPadValue rect = new RectPadValue();
+            IntPtr[] ptrs = GetProcessIdChildrenWindows((int)intPtr);
+            for (int i = 0; i < ptrs.Length; i++)
+            {
+                GetWindowRect(ptrs[i], ref rect);
+                if (rect.IsNotZero())
+                {
+                    foundChild = true;
+                    target = ptrs[i];
+                    return;
+                }
+            }
+            foundChild = false;
+            target = IntPtr.Zero;
+        }
+        
+        public static IntPtr[] GetProcessIdChildrenWindows(int process)
+        {
+            IntPtr[] apRet = (new IntPtr[256]);
+            int iCount = 0;
+            IntPtr pLast = IntPtr.Zero;
+            do
+            {
+                pLast = FindWindowEx(IntPtr.Zero, pLast, null, null);
+                int iProcess_;
+                GetWindowThreadProcessId(pLast, out iProcess_);
+                if (iProcess_ == process) apRet[iCount++] = pLast;
+            } while (pLast != IntPtr.Zero);
+            System.Array.Resize(ref apRet, iCount);
+            return apRet;
+        }
+
+
+        [DllImport("user32.dll")]
+        static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
+        [DllImport("user32.dll")]
+        public static extern bool GetWindowRect(IntPtr hwnd, ref RectPadValue rectangle);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr FindWindowEx(IntPtr parentWindow, IntPtr previousChildWindow, string windowClass, string windowTitle);
+
+
+        public struct RectPadValue
+        {
+            //DONT CHANGE THE ORDER Of THE INT left, top, right, bot
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
+
+            public bool IsNotZero()
+            {
+                return Left != 0 ||
+                     Top != 0 ||
+                     Right != 0 ||
+                     Bottom != 0;
+            }
+            public bool IsEqualZero()
+            {
+                return Left == 0 &&
+                    Top == 0 &&
+                    Right == 0 &&
+                    Bottom == 0;
+            }
+
+        }
     }
+
+
 
 
 }
