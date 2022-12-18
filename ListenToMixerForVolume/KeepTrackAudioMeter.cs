@@ -2,7 +2,7 @@
 
 namespace ListenToMixerForVolume
 {
-    internal class KeepTrackAudioMeter
+    public class KeepTrackAudioMeter
     {
         public AudioSessionControl2 m_session2;
         public AudioMeterInformation m_audioMeterInformation;

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CSCore.Ffmpeg" Version="1.2.0-beta1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="MemoryFileConnectionUtility">
+      <HintPath>..\ListenToMixerForVolume\MemoryFileConnectionUtility.dll</HintPath>
+    </Reference>
+    <Reference Include="AssemblyUDPPusherDLL">
+      <HintPath>..\ListenToMixerForVolume\UDPPusherDLL.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

@@ -1,4 +1,5 @@
 ﻿using CSCore.CoreAudioAPI;
+using MemoryFileConnectionUtility;
 using Microsoft.AspNet.SignalR.Json;
 using Newtonsoft.Json;
 using System;
@@ -7,93 +8,104 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using UDPPusherDLL;
 
 namespace ListenToMixerForVolume
 {
-    public class ConfigurationFile {
-        public int m_targetPortId=2506;
-        public string m_targetIp = "127.0.0.1";
-        public float m_minSound = 0.05f;
-        public float m_maxSound = 1f;
-        public AudioMeterListener[] audioListeners = new AudioMeterListener[] {
-                new AudioMeterListener("wow",0, 0.05f,0.15f,"wowAudio0Low"),
-                new AudioMeterListener("wow",0, 0.15f,0.7f,"wowAudio0medium"),
-                new AudioMeterListener("wow",0, 0.7f,1f,"wowAudio0Hight"),
-                new AudioMeterListener("wow",0, 0.05f,1f,"wowAudio0"),
-                new AudioMeterListener("wow",1, 0.05f,1f,"wowAudio1"),
-                new AudioMeterListener("wow",2, 0.05f,1f,"wowAudio2"),
-                new AudioMeterListener("wow",3, 0.05f,1f,"wowAudio3"),
-                new AudioMeterListener("wow",4, 0.05f,1f,"wowAudio4"),
-                new AudioMeterListener("wow",5, 0.05f,1f,"wowAudio5"),
-                new AudioMeterListener("wow",6, 0.05f,1f,"wowAudio6"),
-                new AudioMeterListener("wow",7, 0.05f,1f,"wowAudio7"),
-                new AudioMeterListener("wow",8, 0.05f,1f,"wowAudio8"),
-                new AudioMeterListener("wow",9, 0.05f,1f,"wowAudio9")
-            };
-    }
-
-
-    class Program
+    public partial class Program
     {
-    public static ConfigurationFile m_defaultConfig= new ConfigurationFile();
-        //Source: https://stackoverflow.com/questions/23999531/cscore-application-audio-mixer-namepeak
+        ////Source: https://stackoverflow.com/questions/23999531/cscore-application-audio-mixer-namepeak
         static void Main(string[] args)
         {
+            Console.WriteLine("Hello !");
+            ConfigurationProjectFromFileAtRoot defaultConfig = new ConfigurationProjectFromFileAtRoot();
+            CommunicationWithOutsideApp communication = new CommunicationWithOutsideApp();
+            DisplayProcess.ConsoleDisplayProcessinMixer();
 
-            string exePath = Directory.GetCurrentDirectory();
-            string jsonImportPath = exePath + "/Configuration.json";
+            ConfigurationProjectFromFileAtRoot.LoadFileAtRoot
+                (out ConfigurationProjectFromFileAtRoot imported);
 
-            string json = JsonConvert.SerializeObject(m_defaultConfig, Formatting.Indented);
-            if (!File.Exists(jsonImportPath))
-                File.WriteAllText(jsonImportPath, json);
-            else json = File.ReadAllText(jsonImportPath);
-
-            ConfigurationFile imported = JsonConvert.DeserializeObject<ConfigurationFile>(json);
-            float minAudio = imported.m_minSound;
-            float maxAudio = imported.m_maxSound;
-            m_ipTarget = imported.m_targetIp;
-            m_ipPort = imported.m_targetPortId;
-            AudioMeterListener[] audioListeners = imported.audioListeners;
-            //using (var sessionManager = GetDefaultAudioSessionManager2(DataFlow.Render))
-            //using (var sessionEnumerator = sessionManager.GetSessionEnumerator())
-            //{
-            //    while (true)
-            //    {
-            //        foreach (var session in sessionEnumerator)
-            //        {
-            //            // Assert.IsNotNull(session);
-
-            //            using (var session2 = session.QueryInterface<AudioSessionControl2>())
-            //            using (var audioMeterInformation = session.QueryInterface<AudioMeterInformation>())
-            //            {
-            //                Console.WriteLine("Process: {0}; Peak: {1:P}",
-            //                     session2.Process == null ? String.Empty : session2.Process.MainWindowTitle,
-            //                     audioMeterInformation.GetPeakValue() * 100);
-            //            }
-            //        }
-            //        Thread.Sleep(100);
-            //    }
-            //}
-
-
-            Dictionary<string, List<KeepTrackAudioMeter>> similarProcessName = new Dictionary<string, List<KeepTrackAudioMeter>>();
-
-            
-
-            Dictionary<string, bool> isOnRegister = new Dictionary<string, bool>();
-            for (int i = 0; i < audioListeners.Length; i++)
+            communication = new CommunicationWithOutsideApp();
             {
-                isOnRegister.Add(audioListeners[i].GetId(), false);
+                // Set Gate with Import
+                {// Target UDP 
+                    if (imported.m_targetPortId == 0)
+                        imported.m_targetPortId = UDPPusherDefault.m_defaultIpPort;
+                    if (imported.m_targetIp.Trim().Length == 0)
+                        imported.m_targetIp = UDPPusherDefault.m_defaultIpAddress;
+                    UdpMessagePusherBuilder.Connect(imported.m_targetIp, imported.m_targetPortId, out communication.m_udpPusherCom);
+                }
+
+                { //Target memory file
+                   if (imported.m_memoryFileName.Trim().Length==0)
+                        imported.m_memoryFileName = "OMIComamndLines";
+                   MemoryFileConnectionFacade.CreateConnection(MemoryFileConnectionType.MemoryFileLocker,
+                   imported.m_memoryFileName, out communication.m_memoryFileCom, 1000000);
+                }
+            }
+            TrackAudioVolumeToBoolean audioTracker = new TrackAudioVolumeToBoolean();
+
+
+            audioTracker.AddBooleanChangeListener((in string booleanName, in bool isOn) =>
+            {
+                BooleanCommandToUtility.GetBooleanSetCommand(in booleanName, in isOn, out string cmd);
+                communication.PushMessage( cmd);
+            });
+
+            audioTracker.InitWithAudi(imported.m_audioListeners);
+
+            if (imported.m_skipAreYouReady)
+            {
+                Console.WriteLine("ready ?");
+                Console.ReadLine();
             }
 
+            while (true)
+            {
+                audioTracker.RefreshAndPushStateChanged();
+                Thread.Sleep(imported.m_timeInMilliseconds);
+            }
+        }
+    }
+
+    public class BooleanCommandToUtility{
+
+        public static void GetBooleanSetCommand(in string booleanName, in bool isOn, out string commandLine) {
+            commandLine= "Ḇ" + (isOn ? 1 : 0) + booleanName;
+        }
+}
+
+    public class TrackAudioVolumeToBoolean {
+
+        public bool m_useDebugLog=true;
+        public delegate void VolumeStateChange(in string name, in bool booleanValue);
+        public VolumeStateChange m_onChanged = null;
+        public Dictionary<string, List<KeepTrackAudioMeter>> m_groupOfObservedPerProcessNameId =  new Dictionary<string, List<KeepTrackAudioMeter>>();
+        public Dictionary<string, bool> m_isInRangeOfVolumeRegister = new Dictionary<string, bool>();
+
+        public AudioMeterListener[] m_audioGivenToTrack;
+
+        public void AddBooleanChangeListener(VolumeStateChange p)
+        {
+            m_onChanged += p;
+        }
+        public void RemoveBooleanChangeListener(VolumeStateChange p)
+        {
+            m_onChanged -= p;
+        }
+
+        public void InitWithAudi(AudioMeterListener[] AudioMeterListener)
+        {
+            m_audioGivenToTrack = AudioMeterListener;
+            InitTheTrueOrFalseRegisterForProcess();
+
+            m_groupOfObservedPerProcessNameId.Clear();
             List<KeepTrackAudioMeter> allAudioMeters = new List<KeepTrackAudioMeter>();
             using (var sessionManager = GetDefaultAudioSessionManager2(DataFlow.Render))
             using (var sessionEnumerator = sessionManager.GetSessionEnumerator())
             {
-
                 allAudioMeters.Clear();
                 foreach (var session in sessionEnumerator)
                 {
@@ -111,21 +123,22 @@ namespace ListenToMixerForVolume
                             ;
                             //session2.Process.Handle
 
-                            GetActiveChildOfProcessId(session2.Process.MainWindowHandle, out IntPtr childId);
+                            Window32DLL.GetActiveChildOfProcessId(session2.Process.MainWindowHandle, out IntPtr childId);
                             KeepTrackAudioMeter tracked = new KeepTrackAudioMeter(session2, audioMeterInformation);
                             allAudioMeters.Add(tracked);
-                            if (!similarProcessName.ContainsKey(processId))
-                                similarProcessName.Add(processId, new List<KeepTrackAudioMeter>());
-                            similarProcessName[processId].Add(tracked);
+                            if (!m_groupOfObservedPerProcessNameId.ContainsKey(processId))
+                                m_groupOfObservedPerProcessNameId.Add(processId, new List<KeepTrackAudioMeter>());
+                            m_groupOfObservedPerProcessNameId[processId].Add(tracked);
 
-                            Console.WriteLine("Process: {0}; Peak: {1:P}; Process:{2} Index: {4} Thread ID: {3}" ,//- Active child {5} (on {6})",
-                             title,
-                             audioMeterInformation.GetPeakValue(), processId,
-                             (int)session2.Process.MainWindowHandle,
-                             similarProcessName[processId].Count-1
-                             //(int)childId,
-                             //GetProcessIdChildrenWindows((int)session2.Process.MainWindowHandle).Length
-                             ); ;
+                            if(m_useDebugLog)
+                                Console.WriteLine("Process: {0}; Peak: {1:P}; Process:{2} Index: {4} Thread ID: {3}",//- Active child {5} (on {6})",
+                            title,
+                            audioMeterInformation.GetPeakValue(), processId,
+                            (int)session2.Process.MainWindowHandle,
+                            m_groupOfObservedPerProcessNameId[processId].Count - 1
+                            //(int)childId,
+                            //GetProcessIdChildrenWindows((int)session2.Process.MainWindowHandle).Length
+                            ); ;
 
                             //Console.WriteLine("Test C");
                             //Console.WriteLine("<Process: {0}; Peak: {1:P}; Process:{2} Index:{4}  Thread ID: {3}",
@@ -138,68 +151,74 @@ namespace ListenToMixerForVolume
                     }
                 }
 
-                Console.WriteLine("Ready ?");
-                Console.ReadLine();
-                string valueFound = "";
-                string valueFoundAsBool = "";
-                string valueFoundAsBoolChanged = "";
-                while (true)
+
+            }
+        }
+
+        private void InitTheTrueOrFalseRegisterForProcess()
+        {
+            m_isInRangeOfVolumeRegister.Clear();
+            for (int i = 0; i < m_audioGivenToTrack.Length; i++)
+            {
+                string id = m_audioGivenToTrack[i].GetGenerateProcessToBooleanId();
+                if (!m_isInRangeOfVolumeRegister.ContainsKey(id))
+                    m_isInRangeOfVolumeRegister.Add(id, false);
+            }
+        }
+
+        public void RefreshAndPushStateChanged() {
+
+
+            string valueFound = "";
+            string valueFoundAsBool = "";
+            string valueFoundAsBoolChanged = "";
+            {
+                foreach (AudioMeterListener audioToConvert in m_audioGivenToTrack)
                 {
-                    valueFound = "";
-                    valueFoundAsBool = "";
-                    valueFoundAsBoolChanged = "";
-                    foreach (AudioMeterListener audioToConvert in audioListeners)
+
+                    string lookFor = audioToConvert.m_processTitle.ToLower();
+                    if (m_groupOfObservedPerProcessNameId.ContainsKey(lookFor))
                     {
 
-                        string lookFor = audioToConvert.m_processTitle.ToLower();
-                        if (similarProcessName.ContainsKey(lookFor))
+                        List<KeepTrackAudioMeter> audioMeter = m_groupOfObservedPerProcessNameId[lookFor];
+                        if (audioToConvert.m_processIndex < audioMeter.Count)
                         {
+                            var audio = audioMeter[audioToConvert.m_processIndex];
+                            float volume = audio.m_audioMeterInformation.GetPeakValue();
 
-                            List<KeepTrackAudioMeter> audioMeter = similarProcessName[lookFor];
-                            if (audioToConvert.m_processIndex < audioMeter.Count) {
-                              var audio = audioMeter[audioToConvert.m_processIndex];
-                                float volume = audio.m_audioMeterInformation.GetPeakValue();
-                                valueFound += "\t" + string.Format("{0:0.00}",
-                                 volume);
-                                bool isOn = volume >= audioToConvert.m_minVolume && volume <= audioToConvert.m_maxVolume;
+                            if (m_useDebugLog)
+                                valueFound += "\t" + string.Format("{0:0.00}", volume);
+
+                            bool isOn = volume >= audioToConvert.m_minVolume && volume <= audioToConvert.m_maxVolume;
+
+                            if (m_useDebugLog)
                                 valueFoundAsBool += "\t" + isOn;
 
-                                bool isOnPrevious = isOnRegister[audioToConvert.GetId()];
-                                if (isOn != isOnPrevious) {
-                                    isOnRegister[audioToConvert.GetId()] = isOn;
-                                    valueFoundAsBoolChanged += "\t"+ audioToConvert.m_toBooleanName;
-                                    SendMessageToUDP("bool:"+ audioToConvert.m_toBooleanName+ ":" + isOn);
-                                }
+                            bool isOnPrevious = m_isInRangeOfVolumeRegister[audioToConvert.GetGenerateProcessToBooleanId()];
+                            if (isOn != isOnPrevious)
+                            {
+                                m_isInRangeOfVolumeRegister[audioToConvert.GetGenerateProcessToBooleanId()] = isOn;
+
+
+                                if (m_useDebugLog)
+                                    valueFoundAsBoolChanged += "\t" + audioToConvert.m_toBooleanName;
+                                if (m_onChanged != null)
+                                    m_onChanged(audioToConvert.m_toBooleanName, isOn);
+
                             }
-
                         }
+
                     }
-                    Console.WriteLine(valueFound + " - " + valueFoundAsBool+" > "+ valueFoundAsBoolChanged);
-                    Thread.Sleep(10);
                 }
-
+                if (m_useDebugLog)
+                    Console.WriteLine(valueFound + " - " + valueFoundAsBool + " > " + valueFoundAsBoolChanged);
+               
             }
+
         }
 
-        private static void GetActiveChildOfProcessId(IntPtr mainWindowHandle, out IntPtr childId)
-        {
-            FetchFirstChildrenThatHasDimension(mainWindowHandle, out bool found, out childId);
-        }
 
-        public static string m_ipTarget="127.0.0.1";
-        public static int    m_ipPort=2506;
 
-        public static IPEndPoint m_destinationEndPoint;
-        public static Socket m_destinationSock;
-        private static void SendMessageToUDP(string message) {
-            if (m_destinationSock == null)
-            {
-                m_destinationSock = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                IPAddress serverAddr = IPAddress.Parse(m_ipTarget);
-                m_destinationEndPoint = new IPEndPoint(serverAddr, m_ipPort);
-            }
-            m_destinationSock.SendTo(Encoding.ASCII.GetBytes(message), m_destinationEndPoint);
-        }
 
         private static AudioSessionManager2 GetDefaultAudioSessionManager2(DataFlow dataFlow)
         {
@@ -214,81 +233,6 @@ namespace ListenToMixerForVolume
             }
         }
 
-
-
-
-
-        public static void FetchFirstChildrenThatHasDimension(IntPtr intPtr, out bool foundChild, out IntPtr target)
-        {
-            RectPadValue rect = new RectPadValue();
-            IntPtr[] ptrs = GetProcessIdChildrenWindows((int)intPtr);
-            for (int i = 0; i < ptrs.Length; i++)
-            {
-                GetWindowRect(ptrs[i], ref rect);
-                if (rect.IsNotZero())
-                {
-                    foundChild = true;
-                    target = ptrs[i];
-                    return;
-                }
-            }
-            foundChild = false;
-            target = IntPtr.Zero;
-        }
-        
-        public static IntPtr[] GetProcessIdChildrenWindows(int process)
-        {
-            IntPtr[] apRet = (new IntPtr[256]);
-            int iCount = 0;
-            IntPtr pLast = IntPtr.Zero;
-            do
-            {
-                pLast = FindWindowEx(IntPtr.Zero, pLast, null, null);
-                int iProcess_;
-                GetWindowThreadProcessId(pLast, out iProcess_);
-                if (iProcess_ == process) apRet[iCount++] = pLast;
-            } while (pLast != IntPtr.Zero);
-            System.Array.Resize(ref apRet, iCount);
-            return apRet;
-        }
-
-
-        [DllImport("user32.dll")]
-        static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
-        [DllImport("user32.dll")]
-        public static extern bool GetWindowRect(IntPtr hwnd, ref RectPadValue rectangle);
-
-        [DllImport("user32.dll")]
-        public static extern IntPtr FindWindowEx(IntPtr parentWindow, IntPtr previousChildWindow, string windowClass, string windowTitle);
-
-
-        public struct RectPadValue
-        {
-            //DONT CHANGE THE ORDER Of THE INT left, top, right, bot
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-
-            public bool IsNotZero()
-            {
-                return Left != 0 ||
-                     Top != 0 ||
-                     Right != 0 ||
-                     Bottom != 0;
-            }
-            public bool IsEqualZero()
-            {
-                return Left == 0 &&
-                    Top == 0 &&
-                    Right == 0 &&
-                    Bottom == 0;
-            }
-
-        }
     }
-
-
-
-
-}
+    
+    }
