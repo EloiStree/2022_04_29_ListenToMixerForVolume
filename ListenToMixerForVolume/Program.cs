@@ -62,10 +62,18 @@ namespace ListenToMixerForVolume
                 Console.ReadLine();
             }
 
+            ulong l = 0;
             while (true)
             {
                 audioTracker.RefreshAndPushStateChanged();
                 Thread.Sleep(imported.m_timeInMilliseconds);
+                l++;
+                if (l % 1000 == 0)
+                {
+
+                    Console.WriteLine(". "+DateTime.Now);
+                }
+
             }
         }
     }
@@ -79,7 +87,7 @@ namespace ListenToMixerForVolume
 
     public class TrackAudioVolumeToBoolean {
 
-        public bool m_useDebugLog=true;
+        public bool m_useDebugLog=false;
         public delegate void VolumeStateChange(in string name, in bool booleanValue);
         public VolumeStateChange m_onChanged = null;
         public Dictionary<string, List<KeepTrackAudioMeter>> m_groupOfObservedPerProcessNameId =  new Dictionary<string, List<KeepTrackAudioMeter>>();
@@ -130,7 +138,7 @@ namespace ListenToMixerForVolume
                                 m_groupOfObservedPerProcessNameId.Add(processId, new List<KeepTrackAudioMeter>());
                             m_groupOfObservedPerProcessNameId[processId].Add(tracked);
 
-                            if(m_useDebugLog)
+                           // if(m_useDebugLog)
                                 Console.WriteLine("Process: {0}; Peak: {1:P}; Process:{2} Index: {4} Thread ID: {3}",//- Active child {5} (on {6})",
                             title,
                             audioMeterInformation.GetPeakValue(), processId,

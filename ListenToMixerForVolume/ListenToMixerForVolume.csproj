@@ -32,14 +32,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="AssemblyUDPPusherDLL">
-      <HintPath>..\..\2022_10_23_UDPPusherDLL\2022_10_23_UDPPusherDLL\Release\AssemblyUDPPusherDLL.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="MemoryFileConnectionUtility">
-      <HintPath>..\..\2022_10_20_MemoryFileConnectionUtilityDLL\Release\MemoryFileConnectionUtility.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
+    <ProjectReference Include="..\..\2022_10_20_MemoryFileConnectionUtilityDLL\MemoryFileConnectionUtilityNoMutex\MemoryFileConnectionUtilityNoMutex.csproj" />
+    <ProjectReference Include="..\..\2022_10_23_UDPPusherDLL\2022_10_23_UDPPusherDLL\2022_10_23_UDPPusherDLL.csproj" />
   </ItemGroup>
 
   <ItemGroup>
