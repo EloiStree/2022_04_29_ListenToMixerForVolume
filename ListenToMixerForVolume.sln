@@ -1,13 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.33130.400
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.34928.147
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ListenToMixerForVolume", "ListenToMixerForVolume\ListenToMixerForVolume.csproj", "{D9596332-8B64-402D-85D4-242FE74E90DA}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MemoryFileConnectionUtilityNoMutex", "..\2022_10_20_MemoryFileConnectionUtilityDLL\MemoryFileConnectionUtilityNoMutex\MemoryFileConnectionUtilityNoMutex.csproj", "{75A2C6D8-CAF9-4D72-A217-8BF127D94FA5}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "2022_10_23_UDPPusherDLL", "..\2022_10_23_UDPPusherDLL\2022_10_23_UDPPusherDLL\2022_10_23_UDPPusherDLL.csproj", "{35F090D8-987B-4908-BC7D-541F81CF97B5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -25,22 +21,6 @@ Global
 		{D9596332-8B64-402D-85D4-242FE74E90DA}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D9596332-8B64-402D-85D4-242FE74E90DA}.Release|x86.ActiveCfg = Release|x86
 		{D9596332-8B64-402D-85D4-242FE74E90DA}.Release|x86.Build.0 = Release|x86
-		{75A2C6D8-CAF9-4D72-A217-8BF127D94FA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{75A2C6D8-CAF9-4D72-A217-8BF127D94FA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{75A2C6D8-CAF9-4D72-A217-8BF127D94FA5}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{75A2C6D8-CAF9-4D72-A217-8BF127D94FA5}.Debug|x86.Build.0 = Debug|Any CPU
-		{75A2C6D8-CAF9-4D72-A217-8BF127D94FA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{75A2C6D8-CAF9-4D72-A217-8BF127D94FA5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{75A2C6D8-CAF9-4D72-A217-8BF127D94FA5}.Release|x86.ActiveCfg = Release|Any CPU
-		{75A2C6D8-CAF9-4D72-A217-8BF127D94FA5}.Release|x86.Build.0 = Release|Any CPU
-		{35F090D8-987B-4908-BC7D-541F81CF97B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{35F090D8-987B-4908-BC7D-541F81CF97B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{35F090D8-987B-4908-BC7D-541F81CF97B5}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{35F090D8-987B-4908-BC7D-541F81CF97B5}.Debug|x86.Build.0 = Debug|Any CPU
-		{35F090D8-987B-4908-BC7D-541F81CF97B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{35F090D8-987B-4908-BC7D-541F81CF97B5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{35F090D8-987B-4908-BC7D-541F81CF97B5}.Release|x86.ActiveCfg = Release|Any CPU
-		{35F090D8-987B-4908-BC7D-541F81CF97B5}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

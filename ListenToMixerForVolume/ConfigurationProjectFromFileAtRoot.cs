@@ -5,10 +5,8 @@ namespace ListenToMixerForVolume
 {
     public class ConfigurationProjectFromFileAtRoot {
         public bool m_useUdp = true;
-        public bool m_useMemoryFile=true;
         public int m_targetPortId=2507;
         public string m_targetIp = "127.0.0.1";
-        public string m_memoryFileName= "OMICommandLines";
         public bool m_skipAreYouReady=true;
         public int m_timeInMilliseconds=5;
         public AudioMeterListener[] m_audioListeners = new AudioMeterListener[] {

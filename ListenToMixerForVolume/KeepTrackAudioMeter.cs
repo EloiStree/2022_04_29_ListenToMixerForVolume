@@ -13,5 +13,9 @@ namespace ListenToMixerForVolume
             this.m_audioMeterInformation = audioMeterInformation;
             m_trackTitle = m_session2.Process.MainWindowTitle;
         }
+
+        public int GetWindowIntegerPointer() { 
+         return m_session2.Process.MainWindowHandle.ToInt32();
+        }
     }
 }

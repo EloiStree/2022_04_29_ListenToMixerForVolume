@@ -1,5 +1,4 @@
 ﻿using CSCore.CoreAudioAPI;
-using MemoryFileConnectionUtility;
 using Microsoft.AspNet.SignalR.Json;
 using Newtonsoft.Json;
 using System;
@@ -10,53 +9,50 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
-using UDPPusherDLL;
 
 namespace ListenToMixerForVolume
 {
     public partial class Program
     {
+
+        public class TargetPortIp
+        {
+            public string m_targetIp = "127.0.0.1";
+            public int m_targetPortId = 0;
+        }
+
+        public static TargetPortIp m_targetPortIp = new TargetPortIp();
+
         ////Source: https://stackoverflow.com/questions/23999531/cscore-application-audio-mixer-namepeak
         static void Main(string[] args)
         {
             Console.WriteLine("Hello !");
             ConfigurationProjectFromFileAtRoot defaultConfig = new ConfigurationProjectFromFileAtRoot();
-            CommunicationWithOutsideApp communication = new CommunicationWithOutsideApp();
             DisplayProcess.ConsoleDisplayProcessinMixer();
 
             ConfigurationProjectFromFileAtRoot.LoadFileAtRoot
                 (out ConfigurationProjectFromFileAtRoot imported);
 
-            communication = new CommunicationWithOutsideApp();
-            {
-                // Set Gate with Import
-                {// Target UDP 
-                    if (imported.m_targetPortId == 0)
-                        imported.m_targetPortId = UDPPusherDefault.m_defaultIpPort;
-                    if (imported.m_targetIp.Trim().Length == 0)
-                        imported.m_targetIp = UDPPusherDefault.m_defaultIpAddress;
-                    UdpMessagePusherBuilder.Connect(imported.m_targetIp, imported.m_targetPortId, out communication.m_udpPusherCom);
-                }
+            m_targetPortIp.m_targetIp = imported.m_targetIp;
+            m_targetPortIp.m_targetPortId = imported.m_targetPortId;
+            
+            Console.WriteLine("Target: " + m_targetPortIp.m_targetIp + ":" + m_targetPortIp.m_targetPortId);
 
-                { //Target memory file
-                   if (imported.m_memoryFileName.Trim().Length==0)
-                        imported.m_memoryFileName = "OMIComamndLines";
-                   MemoryFileConnectionFacade.CreateConnection(MemoryFileConnectionType.MemoryFileLocker,
-                   imported.m_memoryFileName, out communication.m_memoryFileCom, 1000000);
-                }
-            }
+
+
+          
             TrackAudioVolumeToBoolean audioTracker = new TrackAudioVolumeToBoolean();
 
 
             audioTracker.AddBooleanChangeListener((in string booleanName, in bool isOn) =>
             {
                 BooleanCommandToUtility.GetBooleanSetCommand(in booleanName, in isOn, out string cmd);
-                communication.PushMessage( cmd);
+                //communication.PushMessage( cmd);
             });
 
             audioTracker.InitWithAudi(imported.m_audioListeners);
 
-            if (imported.m_skipAreYouReady)
+            if (!imported.m_skipAreYouReady)
             {
                 Console.WriteLine("ready ?");
                 Console.ReadLine();
@@ -213,6 +209,13 @@ namespace ListenToMixerForVolume
                                 if (m_onChanged != null)
                                     m_onChanged(audioToConvert.m_toBooleanName, isOn);
 
+                                int windowIntPointer = audio.GetWindowIntegerPointer();
+                                string cmd = $"{(isOn == true ? '1' : '0')}:{windowIntPointer}:{audioToConvert.m_processIndex}:{audioToConvert.m_toBooleanName}";
+                                Console.WriteLine("Pushing: " + cmd);
+
+                                Console.WriteLine("Target: " + Program.m_targetPortIp.m_targetIp + ":" + Program.m_targetPortIp.m_targetPortId);
+                                SendMessage(Program.m_targetPortIp.m_targetIp, Program.m_targetPortIp.m_targetPortId, cmd);
+                                //communication.PushMessage(cmd);
                             }
                         }
 
@@ -226,6 +229,19 @@ namespace ListenToMixerForVolume
         }
 
 
+        public static void SendMessage(string ipAddress, int port, string message)
+        {
+            // Create a UDP client
+            using (UdpClient client = new UdpClient())
+            {
+                // Convert the message to bytes
+                byte[] bytes = Encoding.UTF8.GetBytes(message);
+
+                // Send the message to the specified IP address and port
+                client.Send(bytes, bytes.Length, ipAddress, port);
+
+            }
+        }
 
 
         private static AudioSessionManager2 GetDefaultAudioSessionManager2(DataFlow dataFlow)
