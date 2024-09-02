@@ -10,13 +10,14 @@ portToListen=2507
 
 key_code_1= 0x31 # 1 //Fishing key
 key_code_interaction= 0x46 # F //Interact with ocean
-key_code_interaction= 0x09 # Tab // To test
 key_code_space= 0x20 # Space // To test
-fishing_mode = "Ocean"
+key_code_afk_break= 0x32 
+key_code_dejunk= 0x33 
 fishing_mode = "Lane"
+fishing_mode = "Ocean"
 
 
-time_between_keyPress = 0.1
+time_between_keyPress = 0.05
 
 
 state_dictionary = {}
@@ -25,52 +26,78 @@ state_dictionary = {}
 
 class WindowIdExecutor():
     def __init__(self, window_id):
+        self.time_recovert_line = 0.2
         self.fishing_time =20
-        self.recall_time = 7
-        self.jump_time = 3
-        self.mute_sound_time = 10
+        self.recall_time = 1.5
+        self.mute_sound_time = 4
         self.window_id = window_id
         self.first_sound_received_time =get_current_time()
         self.time_recall_late = get_current_time()
         self.time_jump = get_current_time()
         self.time_missed_fishing = get_current_time()
-        
+        self.jump_triggered=False
+        self.fishing_triggered=False
+        self.recall_triggered=False
+        self.request_catch_fish=False
         
     def received_sound(self):
         time = get_current_time()
         time_since_first_sound = time - self.first_sound_received_time
+        
+        
+        
         if time_since_first_sound < self.mute_sound_time:
+            return
+        if(self.is_waiting_for_fish(time)):
+            self.request_catch_fish=True
             return
         self.reset_timer()
     
     def reset_timer(self):
         time = get_current_time()
         self.first_sound_received_time = time
-        self.time_recall_late = time
-        self.time_jump =time + self.recall_time
-        self.time_cast_fishing = time + self.recall_time + self.jump_time
-        self.time_missed_fishing = time + self.recall_time + self.jump_time + self.fishing_time
-    
-    def is_time_jump(self, previous, current):
-        if(  self.time_jump > previous and self.time_jump <= current):
+        self.time_recall_late = time +self.time_recovert_line
+        self.time_jump =time +self.time_recovert_line+ self.recall_time
+        self.time_cast_fishing = time+self.time_recovert_line + self.recall_time 
+        self.time_missed_fishing = time +self.time_recovert_line+ self.recall_time  + self.fishing_time
+        self.recovered_line_triggered=False
+        self.fishing_triggered=False
+        self.recall_triggered=False
+        self.request_catch_fish=False
+        
+    def is_time_recovert_line(self, previous, current):
+        if( not self.recovered_line_triggered and self.time_recovert_line <= current):
+            self.recovered_line_triggered=True
             return True
         return False
-    
-    def is_time_cast_fishing(self, previous, current):
-        if(  self.time_cast_fishing > previous and self.time_cast_fishing <= current):
-            return True
-        return False
-    
+        
+        
     def is_time_recall_late(self, previous, current):
-        if(  self.time_recall_late > previous and self.time_recall_late <= current):
+        if(  not self.recall_triggered and self.time_recall_late <= current):
+            self.recall_triggered=True
             return True
         return False
    
+    
+    def is_time_cast_fishing(self, previous, current):
+        if( not self.fishing_triggered and self.time_cast_fishing <= current):
+            self.fishing_triggered = True
+            return True
+        return False
+    
+    def is_waiting_for_fish(self, current):
+        if( current> self.time_cast_fishing and current < self.time_missed_fishing):
+            return True
+        return False
+    
         
     def is_waiting_for_to_long(self, current):
         if( current> self.time_missed_fishing ):
             return True
         return False
+    
+    def has_request_to_catch_fish(self):
+        return self.request_catch_fish
     
     
 
@@ -82,6 +109,8 @@ def execute_future_action(future_action, window_id):
         cast_fishing(window_id)
     elif future_action== "recovert_line":
         recovert_line(window_id)
+    elif future_action== "interaction":
+        interaction(window_id)
     elif future_action == "jump":
         jump(window_id)
     else:
@@ -110,15 +139,19 @@ def notify_fishing(window_id):
 
 
 def jump(window_id):
-    print("jump")
+    print("jump sendkey")
     send_key(window_id, key_code_space)
     
 def recovert_line(window_id):
-    print("Recovering line")
+    print("Recovering line sendkey")
+    send_key(window_id, key_code_interaction)
+
+def interaction(window_id):
+    print("Interaction sendkey")
     send_key(window_id, key_code_interaction)
 
 def cast_fishing(window_id):
-    print("Casting fishing")
+    print("Casting fishing sendkey")
     if fishing_mode == "Ocean":
         send_key(window_id, key_code_interaction)
     else:
@@ -148,6 +181,9 @@ def listen_udp(port):
                 state_dictionary[int_window_id] = WindowIdExecutor(int_window_id)
                 state_dictionary[int_window_id].reset_timer()
             state_dictionary[int_window_id].received_sound()
+            if(state_dictionary[int_window_id].has_request_to_catch_fish()):
+                #execute_future_action("interaction", int_window_id)
+                state_dictionary[int_window_id].reset_timer()
                 
                 
                 
@@ -164,11 +200,14 @@ def tick_timer():
         current_time = get_current_time()
         if not( current_time == previous_time) :
             for state in state_dictionary.values():
-                if state.is_time_jump(previous_time, current_time):
-                    execute_future_action("jump", state.window_id)
+                if state.is_time_recovert_line(previous_time, current_time):
+                    execute_future_action("interaction", state.window_id)
                 if state.is_time_cast_fishing(previous_time, current_time):
                     execute_future_action("cast_fishing", state.window_id)
                 if state.is_waiting_for_to_long(current_time):
+                    execute_future_action("recovert_line", state.window_id)
+                    state.reset_timer()
+                if state.has_request_to_catch_fish():
                     execute_future_action("recovert_line", state.window_id)
                     state.reset_timer()
         time.sleep(1)
