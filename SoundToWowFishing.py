@@ -13,8 +13,8 @@ key_code_interaction= 0x46 # F //Interact with ocean
 key_code_space= 0x20 # Space // To test
 key_code_afk_break= 0x32 
 key_code_dejunk= 0x33 
-fishing_mode = "Lane"
 fishing_mode = "Ocean"
+fishing_mode = "Lane"
 
 
 time_between_keyPress = 0.05
