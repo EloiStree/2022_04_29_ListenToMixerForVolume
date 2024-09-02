@@ -4,6 +4,7 @@ import time
 import asyncio
 import threading
 from enum import Enum
+import random
 
 portToListen=2507
 
@@ -15,20 +16,33 @@ key_code_afk_break= 0x32
 key_code_dejunk= 0x33 
 fishing_mode = "Ocean"
 fishing_mode = "Lane"
+random_jump_percent=3
 
 
 time_between_keyPress = 0.05
 
+bool_use_debug_text = False
 
 state_dictionary = {}
 
 
+if(bool_use_debug_text):
+    print("Debug text enabled")
+else:
+    print("Debug text disabled")
+    
+print("Fishing mode: " + fishing_mode)
+print("Key code 1: " + str(key_code_1))
+print("Key code interaction: " + str(key_code_interaction))
+print("Key code space: " + str(key_code_space))
+print("Port to listen: " + str(portToListen))
+
 
 class WindowIdExecutor():
     def __init__(self, window_id):
-        self.time_recovert_line = 0.2
+        self.time_recovert_line = 0.15
         self.fishing_time =20
-        self.recall_time = 1.5
+        self.recall_time = 0.8
         self.mute_sound_time = 4
         self.window_id = window_id
         self.first_sound_received_time =get_current_time()
@@ -104,7 +118,8 @@ class WindowIdExecutor():
 
 
 def execute_future_action(future_action, window_id):
-    print(f"A:{future_action} W:{str(window_id)}")
+    if(bool_use_debug_text):
+        print(f"A:{future_action} W:{str(window_id)}")
     if future_action == "cast_fishing":
         cast_fishing(window_id)
     elif future_action== "recovert_line":
@@ -114,7 +129,8 @@ def execute_future_action(future_action, window_id):
     elif future_action == "jump":
         jump(window_id)
     else:
-        print("Unknown action")
+        if(bool_use_debug_text):
+            print("Unknown action")
     
 
 
@@ -123,7 +139,8 @@ def get_current_time():
 
 
 def send_key(window_id, key_code):
-    print(f"Sending key code {key_code} to window {window_id}")
+    if(bool_use_debug_text):
+        print(f"Sending key code {key_code} to window {window_id}")
     ctypes.windll.user32.PostMessageW(window_id, 0x100, key_code, 0)
     time.sleep(time_between_keyPress)
     ctypes.windll.user32.PostMessageW(window_id, 0x101, key_code, 0)
@@ -139,19 +156,23 @@ def notify_fishing(window_id):
 
 
 def jump(window_id):
-    print("jump sendkey")
+    if(bool_use_debug_text):
+        print("jump sendkey")
     send_key(window_id, key_code_space)
     
 def recovert_line(window_id):
-    print("Recovering line sendkey")
+    if(bool_use_debug_text):
+        print("Recovering line sendkey")
     send_key(window_id, key_code_interaction)
 
 def interaction(window_id):
-    print("Interaction sendkey")
+    if(bool_use_debug_text):
+        print("Interaction sendkey")
     send_key(window_id, key_code_interaction)
 
 def cast_fishing(window_id):
-    print("Casting fishing sendkey")
+    if(bool_use_debug_text):
+        print("Casting fishing sendkey")
     if fishing_mode == "Ocean":
         send_key(window_id, key_code_interaction)
     else:
@@ -165,7 +186,7 @@ def listen_udp(port):
     # Bind the socket to a specific address and port
     sock.bind(('0.0.0.0', port))
 
-    print(f"       Listening for UDP packets on port {port}...")
+    print(f">>  Listening for UDP packets on port {port}...")
 
     while True:
         # Receive data from the socket
@@ -192,7 +213,7 @@ def listen_udp(port):
 
 
 def tick_timer():
-    print ("     Starting recast_fishing_if_cooldown_past")
+    print (">>  Starting recast_fishing_if_cooldown_past")
     previous_time = get_current_time()
     current_time = get_current_time()
     while True:
@@ -201,7 +222,12 @@ def tick_timer():
         if not( current_time == previous_time) :
             for state in state_dictionary.values():
                 if state.is_time_recovert_line(previous_time, current_time):
-                    execute_future_action("interaction", state.window_id)
+                    int_random = random.randint(1, 100)
+                    if(int_random <= random_jump_percent):
+                        execute_future_action("jump", state.window_id)
+                        state.reset_timer()
+                    else :
+                        execute_future_action("interaction", state.window_id)
                 if state.is_time_cast_fishing(previous_time, current_time):
                     execute_future_action("cast_fishing", state.window_id)
                 if state.is_waiting_for_to_long(current_time):
@@ -210,8 +236,8 @@ def tick_timer():
                 if state.has_request_to_catch_fish():
                     execute_future_action("recovert_line", state.window_id)
                     state.reset_timer()
-        time.sleep(1)
-        #print(".")
+
+        time.sleep(0.1)
 
  
 
@@ -229,19 +255,6 @@ if __name__ == "__main__":
 string_input = input("Press Enter to exit")
 
 
-
-
-# State machine
-# For each window_id
-    # Waiting for sound to be received
-    # Sound received, lock the the event
-    # recall the lane fishing
-    # wait for to be recalled
-    # jump
-    # wait end of jump
-    # cast fishing
-    # wait for fishing to be completed
-    # no sound received, recall the lane fishing
 
 
 
