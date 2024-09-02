@@ -172,7 +172,7 @@ def tick_timer():
                     execute_future_action("recovert_line", state.window_id)
                     state.reset_timer()
         time.sleep(1)
-        print(".")
+        #print(".")
 
  
 
