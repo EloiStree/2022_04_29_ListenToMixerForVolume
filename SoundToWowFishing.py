@@ -236,6 +236,7 @@ def tick_timer():
                 if state.has_request_to_catch_fish():
                     execute_future_action("recovert_line", state.window_id)
                     state.reset_timer()
+
         time.sleep(0.1)
 
  
