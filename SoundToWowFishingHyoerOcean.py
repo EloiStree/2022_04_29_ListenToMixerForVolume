@@ -14,8 +14,8 @@ key_code_interaction= 0x46 # F //Interact with ocean
 key_code_space= 0x58 # Space // To test x 0x58
 key_code_afk_break= 0x32 
 key_code_dejunk= 0x33 
-fishing_mode = "Ocean"
 fishing_mode = "Lane"
+fishing_mode = "Ocean"
 random_jump_percent=3
 
 
@@ -175,6 +175,8 @@ def cast_fishing(window_id):
         print("Casting fishing sendkey")
     if fishing_mode == "Ocean":
         send_key(window_id, key_code_interaction)
+       # time.sleep(0.1)  # Wait a bit before sending the next key
+        send_key(window_id, key_code_1)
     else:
         send_key(window_id, key_code_1)
 
